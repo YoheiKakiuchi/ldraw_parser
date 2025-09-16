@@ -1,0 +1,175 @@
+# Directory specification
+
+topDir : top directory
+partsDir : topDir/parts 
+subDir : topDir/p
+
+all files are under partsDir or subDir
+
+
+# File specification
+
+There are 6 "LineType".
+
+num : "LineType"
+0: Comment
+1: FILE
+2: LINE
+3: TRIANGLE
+4: QUAD
+5: OPTIONAL
+
+a line in the file will start with "LineType" and white spaces.
+
+For example.
+0 [Comment]
+1 [File description]
+
+## description of each LineType
+
+- LineType 0 : 
+0 // <comment>
+or
+0 <comment>
+
+ -- META_COMMAND (LineType.META_COMMAND)
+0 !<META command> <additional parameters>
+
+ -- BFC_STATEMENT (LineType.BFC_STATEMENT)
+0 BFC (NOCERTIFY | CERTIFY [CW|{CCW}])
+or
+0 BFC ((CW|CCW) | CLIP [(CW|CCW)] | NOCLIP | INVERTNEXT)
+
+- LineType 1 : FILE
+1 <color> x y z a b c d e f g h i <filename>
+
+it's represents 4x4 matrix
+ / a b c x \
+ | d e f y |
+ | g h i z |
+ \ 0 0 0 1 /
+
+
+- LineType 2 : LINE
+
+2 <color> x1 y1 z1 x2 y2 z2
+
+Line.data <= [ np.array((x1, y1, z1)), np.array((x2, y2, z2)) ]
+
+
+- LineType 3 : TRIANGLE
+
+3 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3
+
+Line.data <= [ np.array((x1, y1, z1)), np.array((x2, y2, z2)), np.array((x3, y3, z3)) ]
+
+
+- LineType 4 : QUAD
+
+4 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+
+Line.data <= [ np.array((x1, y1, z1)), np.array((x2, y2, z2)), np.array((x3, y3, z3)), np.array((x4, y4, z4)) ]
+
+
+- LineType 5 : OPTIONAL (this is not QUAD, optional line type)
+
+5 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+
+Line.data <= [ np.array((x1, y1, z1)), np.array((x2, y2, z2)), np.array((x3, y3, z3)), np.array((x4, y4, z4)) ]
+
+
+# class specification
+
+from enum import Enum
+class LineType(Enum):
+    COMMENT = 0
+    FILE = 1
+    LINE = 2
+    TRIANGLE = 3
+    QUAD = 4
+    OPTIONAL = 5
+    META_COMMAND = 6
+    BFC_STATEMENT =  7
+    INVALID = -1 
+
+
+class BFC_Command(Enum):
+    CW  = 1
+    CCW = 2
+    NOCERTIFY = 3
+    CERTIFY = 4
+    CLIP = 5
+    NOCLIP = 6
+    INVERTNEXT =  7
+    INVALID = -1
+
+
+class CW_CCW(Enum):
+    CW  = 1
+    CCW = 2
+    INVALID = -1     
+
+
+class BFC_STATEMENT(object):
+<property>  command: BFC_Command
+<property>  direction: CW or CCW
+
+
+class Library(object):
+<property>  topDir : path
+<property>  partsDir : path
+<property>  subDir : path
+<property>  registry : Dict[ ':filename', Pfile) ]
+<method> loadParts(partsName) -> Pfile
+
+
+class Pfile(object):
+<property>  name: text(partsname)
+<property>  file: text
+<property>  lines: list[Line]
+
+
+class Line(object):
+<property>  type : LineType
+<property>  color : ?
+<property>  rawdata : text
+<property>  T : numpy(array) # 4x4 matrix, used only for LineType == FILE
+<property>  file : Pfile # used only for LineType == FILE, for other LineType should be None
+<property>  data : [ numpy(array) ] (line, triangle or quad)
+
+
+class SubLines(object):
+<property>  name: text(partsname)
+<property>  id: uuid(text)
+<property>  lines: list[SubLine]
+<property>  world: numpy(array) # 4x4 matrix
+<method> getTriangles : get all triangles from this and all descendants recursively
+<metohd> getQuads : get all quads from this and all descendants recursively
+<metohd> getLines : get all quads from this and all descendants recursively
+<metohd> getOptionals : get all quads from this and all descendants recursively
+<method> getLocations : get all locations from this and all descendants recursively
+
+
+class SubLine(Line):
+<property>  CW_CCW : 
+<property>  INVERT : bool
+<property>  locations : list[ (Transformation, 'Pfile.name') ] # locations from this and all descendants
+<property>  child : SubLines # only for LineType of FILES
+<property>  parent : SubLines
+<method> updateLocations : update locations of this instance
+
+location is tuple of Transformation and Pfile.name, only for SubLine with LineType == FILE, other LineType should be None 
+
+# program
+
+Parse files for required parts to Pfile and Line using Library.
+They are parsed only one time and use as constants after parsing.
+
+While making a part, use SubLines and SubLine which should be copied from Pfile and Line.
+
+Line.file should be stored Pfile if LineType is FILE
+
+For non-FILE lines: property file should be None.
+property file should be should be set in function _parse_line.
+
+Write code for store each files as a instance of Pfile.
