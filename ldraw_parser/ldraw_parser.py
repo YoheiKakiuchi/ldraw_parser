@@ -1,29 +1,57 @@
-"""
-Parts parsing & instancing system per specification.
+"""ldraw_parser: Minimal LDraw-like part file parser & instancing system.
 
+Specification Summary (from user-provided design):
+-------------------------------------------------
 Directory layout:
- topDir/
-   parts/  (partsDir)
-   p/      (subDir)
+    topDir/
+        parts/  (partsDir)
+        p/      (subDir)
+All referenced part files are expected beneath either ``partsDir`` or ``subDir``.
 
 Parsing phase:
- - Each part file parsed ONCE into immutable Pfile / Line and cached
-     in Library.registry.
- - Registry key is lower-case basename.
+    * Each part file is parsed exactly once into immutable ``Pfile`` and ``Line`` objects.
+    * Objects are cached in ``Library.registry`` keyed by the lowercase basename.
 
 Runtime phase:
- - SubLines / SubLine are mutable instance copies with world transforms.
- - FILE lines create child SubLines (recursive) using their 4x4 matrix.
+    * ``SubLines`` / ``SubLine`` are mutable instance copies carrying world transforms.
+    * A FILE (LineType==FILE) spawns a child ``SubLines`` using its 4x4 transformation matrix.
 
-Line formats:
+Line types (numeric code at line start):
  0 COMMENT
- 0 !<META ...>                               -> META_COMMAND
- 0 BFC (NOCERTIFY|CERTIFY ... / CW / CCW...) -> BFC_STATEMENT
- 1 FILE : 1 <color> x y z a b c d e f g h i <filename>
- 2 LINE : 2 <color> x1 y1 z1 x2 y2 z2
- 3 TRI  : 3 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3
- 4 QUAD : 4 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
- 5 OPT  : 5 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+ 1 FILE      -> 1 <color> x y z a b c d e f g h i <filename>
+ 2 LINE      -> 2 <color> x1 y1 z1 x2 y2 z2
+ 3 TRIANGLE  -> 3 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3
+ 4 QUAD      -> 4 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4
+ 5 OPTIONAL  -> 5 <color> x1 y1 z1 x2 y2 z2 x3 y3 z3 x4 y4 z4 (treated separately from QUAD)
+
+Special zero (0) lines:
+    * Comment: ``0 // <comment>`` or ``0 <comment>``
+    * Meta command: ``0 !<META ...>``  -> LineType.META_COMMAND
+    * BFC statement: ``0 BFC ...`` -> LineType.BFC_STATEMENT with commands:
+                NOCERTIFY | CERTIFY [CW|CCW]
+                (CW|CCW) | CLIP [CW|CCW] | NOCLIP | INVERTNEXT
+
+FILE transform layout (matrix columns a..i and translation x,y,z):
+        / a b c x \
+        | d e f y |  -> stored as 4x4 homogeneous matrix T
+        | g h i z |
+        \ 0 0 0 1 /
+
+Data storage per geometry line:
+    * LINE:      two 3D points
+    * TRIANGLE:  three 3D points
+    * QUAD:      four 3D points
+    * OPTIONAL:  four 3D points (semantic differs from QUAD)
+
+BFC Handling:
+    * A running orientation state (CW / CCW) may be set by BFC commands (CERTIFY, CW, CCW, CLIP w/ direction).
+    * INVERTNEXT flags the next non-BFC geometry/FILE line; stored in ``SubLine.INVERT``.
+    * Each non-BFC geometry/FILE ``SubLine`` records effective winding in ``SubLine.CW_CCW``.
+
+Recursive Accessors:
+    ``SubLines`` provides getTriangles/getQuads/getLines/getOptionals/getLocations including descendants.
+
+Helper gather_* functions remain for backward compatibility.
 """
 
 from __future__ import annotations
@@ -66,10 +94,16 @@ class BFC_Command(Enum):
     INVALID = -1
 
 
+class CW_CCW(Enum):
+    CW = 1
+    CCW = 2
+    INVALID = -1
+
+
 @dataclass(frozen=True)
 class BFC_STATEMENT:
     command: BFC_Command
-    direction: Optional[BFC_Command] = None  # CW or CCW when applicable
+    direction: Optional[CW_CCW] = None  # CW or CCW when applicable
 
 
 # ------------------------------------------------------ Immutable parsed ----
@@ -168,8 +202,10 @@ class SubLine:
     T: Optional[np.ndarray] = None
     data: Tuple[np.ndarray, ...] = tuple()
     parent: "SubLines" = field(repr=False, default=None)
-    CW_CCW: Optional[bool] = None
-    INVERT: bool = False
+    # Orientation / BFC related
+    CW_CCW: Optional[CW_CCW] = None  # Effective winding state at this line
+    INVERT: bool = False  # True if preceded by INVERTNEXT
+    bfc: Optional[BFC_STATEMENT] = None  # If this subline came from a BFC statement (LineType.BFC_STATEMENT)
     child: Optional["SubLines"] = None
     locations: List[Tuple[np.ndarray, str]] = field(default_factory=list)
 
@@ -187,28 +223,64 @@ class SubLines:
     id: str
     lines: List[SubLine]
     world: np.ndarray  # 4x4
-
+    # Recursive accessors (include this node and all descendants)
     def getTriangles(self) -> np.ndarray:
         acc: List[np.ndarray] = []
+        # Collect own
         for ln in self.lines:
             if ln.type == LineType.TRIANGLE and len(ln.data) == 3:
                 acc.append(_world_pts(self.world, ln.data).reshape(1, 3, 3))
+        # Recurse
+        for ln in self.lines:
+            if ln.child:
+                child_tris = ln.child.getTriangles()
+                if child_tris.size:
+                    acc.append(child_tris)
         return np.concatenate(acc, axis=0) if acc else np.zeros((0, 3, 3))
 
     def getQuads(self) -> np.ndarray:
         acc: List[np.ndarray] = []
         for ln in self.lines:
-            if (
-                ln.type in (LineType.QUAD, LineType.OPTIONAL)
-                and len(ln.data) == 4
-            ):
+            if ln.type == LineType.QUAD and len(ln.data) == 4:
                 acc.append(_world_pts(self.world, ln.data).reshape(1, 4, 3))
+        for ln in self.lines:
+            if ln.child:
+                child_quads = ln.child.getQuads()
+                if child_quads.size:
+                    acc.append(child_quads)
+        return np.concatenate(acc, axis=0) if acc else np.zeros((0, 4, 3))
+
+    def getLines(self) -> np.ndarray:
+        acc: List[np.ndarray] = []
+        for ln in self.lines:
+            if ln.type == LineType.LINE and len(ln.data) == 2:
+                acc.append(_world_pts(self.world, ln.data).reshape(1, 2, 3))
+        for ln in self.lines:
+            if ln.child:
+                child_lines = ln.child.getLines()
+                if child_lines.size:
+                    acc.append(child_lines)
+        return np.concatenate(acc, axis=0) if acc else np.zeros((0, 2, 3))
+
+    def getOptionals(self) -> np.ndarray:
+        acc: List[np.ndarray] = []
+        for ln in self.lines:
+            if ln.type == LineType.OPTIONAL and len(ln.data) == 4:
+                acc.append(_world_pts(self.world, ln.data).reshape(1, 4, 3))
+        for ln in self.lines:
+            if ln.child:
+                child_opts = ln.child.getOptionals()
+                if child_opts.size:
+                    acc.append(child_opts)
         return np.concatenate(acc, axis=0) if acc else np.zeros((0, 4, 3))
 
     def getLocations(self) -> List[Tuple[np.ndarray, str]]:
         out: List[Tuple[np.ndarray, str]] = []
         for ln in self.lines:
             out.extend(ln.locations)
+        for ln in self.lines:
+            if ln.child:
+                out.extend(ln.child.getLocations())
         return out
 
 
@@ -315,7 +387,11 @@ def instantiate(
     if world is None:
         world = np.eye(4)
     inst = SubLines(name=pf.name, id=uuid.uuid4().hex, lines=[], world=world)
+    # Track current winding orientation (None until certified)
+    current_winding: Optional[CW_CCW] = None
+    invert_next = False
     for ln in pf.lines:
+        # Create SubLine
         sub = SubLine(
             type=ln.type,
             rawdata=ln.rawdata,
@@ -323,8 +399,33 @@ def instantiate(
             color=ln.color,
             T=ln.T.copy() if ln.T is not None else None,
             data=tuple(np.array(p) for p in ln.data),
-            parent=inst
+            parent=inst,
         )
+        # Attach BFC statement meta if present
+        if ln.type == LineType.BFC_STATEMENT and ln.bfc:
+            sub.bfc = ln.bfc
+            cmd = ln.bfc.command
+            # Adjust state machine
+            if cmd == BFC_Command.INVERTNEXT:
+                invert_next = True
+            elif cmd in (BFC_Command.CW, BFC_Command.CCW):
+                current_winding = CW_CCW.CW if cmd == BFC_Command.CW else CW_CCW.CCW
+            elif cmd in (BFC_Command.CERTIFY, BFC_Command.NOCERTIFY):
+                # If CERTIFY/NOCERTIFY may include direction
+                if ln.bfc.direction:
+                    current_winding = ln.bfc.direction
+            elif cmd == BFC_Command.CLIP:
+                # Optional direction update
+                if ln.bfc.direction:
+                    current_winding = ln.bfc.direction
+            # NOCLIP does not change winding
+        # Apply orientation flags to geometry carrying lines (except pure BFC statements)
+        if ln.type not in (LineType.BFC_STATEMENT, LineType.META_COMMAND, LineType.COMMENT):
+            sub.CW_CCW = current_winding
+            sub.INVERT = invert_next
+            # Reset invert flag after consuming it
+            if invert_next:
+                invert_next = False
         inst.lines.append(sub)
     for sub in inst.lines:
         if sub.type == LineType.FILE and sub.T is not None:
@@ -341,43 +442,23 @@ def instantiate(
 
 
 def gather_triangles(root: SubLines) -> np.ndarray:
-    acc: List[np.ndarray] = []
-
-    def dfs(node: SubLines):
-        acc.append(node.getTriangles())
-        for ln in node.lines:
-            if ln.child:
-                dfs(ln.child)
-    dfs(root)
-    if any(a.size for a in acc):
-        return np.concatenate([a for a in acc if a.size], axis=0)
-    return np.zeros((0, 3, 3))
+    return root.getTriangles()
 
 
 def gather_quads(root: SubLines) -> np.ndarray:
-    acc: List[np.ndarray] = []
-
-    def dfs(node: SubLines):
-        acc.append(node.getQuads())
-        for ln in node.lines:
-            if ln.child:
-                dfs(ln.child)
-    dfs(root)
-    if any(a.size for a in acc):
-        return np.concatenate([a for a in acc if a.size], axis=0)
-    return np.zeros((0, 4, 3))
+    return root.getQuads()
 
 
 def gather_locations(root: SubLines) -> List[Tuple[np.ndarray, str]]:
-    out: List[Tuple[np.ndarray, str]] = []
+    return root.getLocations()
 
-    def dfs(node: SubLines):
-        out.extend(node.getLocations())
-        for ln in node.lines:
-            if ln.child:
-                dfs(ln.child)
-    dfs(root)
-    return out
+
+def gather_lines(root: SubLines) -> np.ndarray:
+    return root.getLines()
+
+
+def gather_optionals(root: SubLines) -> np.ndarray:
+    return root.getOptionals()
 
 
 # ------------------------------------------------------------- Helpers ----
@@ -439,10 +520,12 @@ def _demo():  # pragma: no cover
     for r in roots:
         report.append({
             "part": r.name,
-            "triangles": int(gather_triangles(r).shape[0]),
-            "quads": int(gather_quads(r).shape[0]),
-            "locations": len(gather_locations(r)),
-            "lines": len(r.lines)
+            "triangles": int(r.getTriangles().shape[0]),
+            "quads": int(r.getQuads().shape[0]),
+            "lines": int(r.getLines().shape[0]),
+            "optionals": int(r.getOptionals().shape[0]),
+            "locations": len(r.getLocations()),
+            "top_level_lines": len(r.lines)
         })
     print(json.dumps(report, indent=2))
 
