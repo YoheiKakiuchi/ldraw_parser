@@ -172,4 +172,14 @@ Line.file should be stored Pfile if LineType is FILE
 For non-FILE lines: property file should be None.
 property file should be should be set in function _parse_line.
 
+Line.bfc is not copied in loadParts, near 'final ='
+
+invert_next would propagate to childs if LineType == FILE, add argument(invert) to  instantiate.
+
 Write code for store each files as a instance of Pfile.
+
+
+## for fixing
+
+remove 449-452, sub.data is not reversed in instantiate.
+For getQuads and getTriangles, sub.data should be reversed if (sub.INVERT == FALSE and sub.CW_CCW == CW) or (sub.INVERT == TRUE and sub.CW_CCW == CCW)

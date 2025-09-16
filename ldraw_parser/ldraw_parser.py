@@ -184,6 +184,7 @@ class Library:
                     color=ln.color,
                     T=ln.T.copy() if ln.T is not None else None,
                     data=tuple(np.array(p) for p in ln.data),
+                    bfc=ln.bfc,
                 )
                 for ln in parsed
             ),
@@ -229,7 +230,14 @@ class SubLines:
         # Collect own
         for ln in self.lines:
             if ln.type == LineType.TRIANGLE and len(ln.data) == 3:
-                acc.append(_world_pts(self.world, ln.data).reshape(1, 3, 3))
+                pts = ln.data
+                # Reverse rule: (not INVERT and CW) or (INVERT and CCW)
+                if ln.CW_CCW is not None:
+                    reverse_needed = ((not ln.INVERT and ln.CW_CCW == CW_CCW.CW) or
+                                      (ln.INVERT and ln.CW_CCW == CW_CCW.CCW))
+                    if reverse_needed:
+                        pts = _invert_points(pts, LineType.TRIANGLE)
+                acc.append(_world_pts(self.world, pts).reshape(1, 3, 3))
         # Recurse
         for ln in self.lines:
             if ln.child:
@@ -242,7 +250,13 @@ class SubLines:
         acc: List[np.ndarray] = []
         for ln in self.lines:
             if ln.type == LineType.QUAD and len(ln.data) == 4:
-                acc.append(_world_pts(self.world, ln.data).reshape(1, 4, 3))
+                pts = ln.data
+                if ln.CW_CCW is not None:
+                    reverse_needed = ((not ln.INVERT and ln.CW_CCW == CW_CCW.CW) or
+                                      (ln.INVERT and ln.CW_CCW == CW_CCW.CCW))
+                    if reverse_needed:
+                        pts = _invert_points(pts, LineType.QUAD)
+                acc.append(_world_pts(self.world, pts).reshape(1, 4, 3))
         for ln in self.lines:
             if ln.child:
                 child_quads = ln.child.getQuads()
@@ -382,14 +396,34 @@ def _parse_line(text: str, pf: Pfile, lib: "Library") -> Optional[Line]:
 
 # ------------------------------------------------------ Instancing API ----
 def instantiate(
-    pf: Pfile, lib: Library, world: Optional[np.ndarray] = None
+    pf: Pfile,
+    lib: Library,
+    world: Optional[np.ndarray] = None,
+    invert: bool = False,
 ) -> SubLines:
+    """Instantiate a parsed part file into a mutable hierarchy.
+
+    Parameters
+    ----------
+    pf : Pfile
+        Parsed immutable part.
+    lib : Library
+        Library for recursive loads.
+    world : np.ndarray, optional
+        4x4 world matrix for this root (defaults to identity).
+    invert : bool, default False
+        Incoming inversion state from parent. Effective inversion for a
+        geometry / FILE line is computed as (parent invert) XOR (pending
+        INVERTNEXT). When effective inversion is True, TRIANGLE/QUAD/OPTIONAL
+        vertex order is reversed at instancing time and the SubLine.INVERT
+        flag is set.
+    """
     if world is None:
         world = np.eye(4)
     inst = SubLines(name=pf.name, id=uuid.uuid4().hex, lines=[], world=world)
     # Track current winding orientation (None until certified)
     current_winding: Optional[CW_CCW] = None
-    invert_next = False
+    invert_next = False  # Tracks pending INVERTNEXT for next geometry/FILE
     for ln in pf.lines:
         # Create SubLine
         sub = SubLine(
@@ -422,8 +456,9 @@ def instantiate(
         # Apply orientation flags to geometry carrying lines (except pure BFC statements)
         if ln.type not in (LineType.BFC_STATEMENT, LineType.META_COMMAND, LineType.COMMENT):
             sub.CW_CCW = current_winding
-            sub.INVERT = invert_next
-            # Reset invert flag after consuming it
+            # Effective inversion for this line = parent invert XOR invert_next
+            sub.INVERT = invert ^ invert_next
+            # Consume invert_next only once for the next geometry/FILE line
             if invert_next:
                 invert_next = False
         inst.lines.append(sub)
@@ -435,7 +470,8 @@ def instantiate(
                 child_pf = lib.loadParts(fname)
                 if child_pf:
                     child_world = inst.world @ sub.T
-                    sub.child = instantiate(child_pf, lib, child_world)
+                    # Propagate inversion state into child instantiation
+                    sub.child = instantiate(child_pf, lib, child_world, invert=sub.INVERT)
     for sub in inst.lines:
         sub.updateLocations()
     return inst
@@ -468,6 +504,27 @@ def _world_pts(world: np.ndarray, pts: Tuple[np.ndarray, ...]) -> np.ndarray:
     return (world @ homog.T).T[:, :3]
 
 
+def _invert_points(pts: Tuple[np.ndarray, ...], ltype: LineType) -> Tuple[np.ndarray, ...]:
+    """Return a new tuple of points with winding inverted.
+
+    For TRIANGLE: swap v1 & v3 (reverse order) -> (p0, p2, p1)
+    For QUAD / OPTIONAL: swap second and fourth to keep adjacent edges: (p0, p3, p2, p1)
+    This mirrors typical LDraw winding inversion used when applying INVERTNEXT.
+    """
+    if not pts:
+        return pts
+    if ltype == LineType.TRIANGLE and len(pts) == 3:
+        p0, p1, p2 = pts
+        return (p0, p2, p1)
+    if ltype in (LineType.QUAD, LineType.OPTIONAL) and len(pts) == 4:
+        p0, p1, p2, p3 = pts
+        return (p0, p3, p2, p1)
+    # Fallback generic reversal
+    return tuple(reversed(pts))  # type: ignore
+
+
+
+
 def _parse_bfc(tokens: List[str]) -> Optional[BFC_STATEMENT]:
     """Parse tokens after the 'BFC' keyword.
     tokens examples:
@@ -491,10 +548,10 @@ def _parse_bfc(tokens: List[str]) -> Optional[BFC_STATEMENT]:
         'NOCLIP': BFC_Command.NOCLIP,
         'INVERTNEXT': BFC_Command.INVERTNEXT,
     }
-    direction_map = {'CW': BFC_Command.CW, 'CCW': BFC_Command.CCW}
+    direction_map = {'CW': CW_CCW.CW, 'CCW': CW_CCW.CCW}
     first = tokens[0].upper()
     cmd = primary_map.get(first, BFC_Command.INVALID)
-    direction: Optional[BFC_Command] = None
+    direction: Optional[CW_CCW] = None
     if cmd in (BFC_Command.CERTIFY, BFC_Command.NOCERTIFY, BFC_Command.CLIP):
         if len(tokens) > 1:
             direction = direction_map.get(tokens[1].upper())
