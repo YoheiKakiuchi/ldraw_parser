@@ -58,7 +58,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Dict, List, Optional, Tuple
 import uuid
 import numpy as np
@@ -153,6 +153,7 @@ class Library:
         ]
 
     def loadParts(self, partsName: str) -> Optional[Pfile]:
+        partsName = PureWindowsPath(partsName).as_posix()
         key = self._normalize(partsName)
         if key in self.registry:
             return self.registry[key]
@@ -162,6 +163,7 @@ class Library:
                 chosen = c.resolve()
                 break
         if not chosen:
+            print('Warning: {} is not found'.format(partsName))
             return None
         temp_pf = Pfile(name=chosen.name, file=str(chosen), lines=tuple())
         # register stub early for recursive references
