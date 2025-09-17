@@ -237,6 +237,9 @@ class SubLines:
                 if ln.CW_CCW is not None:
                     reverse_needed = ((not ln.INVERT and ln.CW_CCW == CW_CCW.CW) or
                                       (ln.INVERT and ln.CW_CCW == CW_CCW.CCW))
+                    ## mirror (left-handed coords)
+                    if np.linalg.det(self.world[:3,:3]) < 0:
+                        reverse_needed = not reverse_needed
                     if reverse_needed:
                         pts = _invert_points(pts, LineType.TRIANGLE)
                 acc.append(_world_pts(self.world, pts).reshape(1, 3, 3))
@@ -256,6 +259,9 @@ class SubLines:
                 if ln.CW_CCW is not None:
                     reverse_needed = ((not ln.INVERT and ln.CW_CCW == CW_CCW.CW) or
                                       (ln.INVERT and ln.CW_CCW == CW_CCW.CCW))
+                    ## mirror (left-handed coords)
+                    if np.linalg.det(self.world[:3,:3]) < 0:
+                        reverse_needed = not reverse_needed
                     if reverse_needed:
                         pts = _invert_points(pts, LineType.QUAD)
                 acc.append(_world_pts(self.world, pts).reshape(1, 4, 3))
