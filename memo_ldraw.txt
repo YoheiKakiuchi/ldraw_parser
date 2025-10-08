@@ -1,0 +1,468 @@
+# https://www.ldraw.org/
+# https://www.leocad.org/
+
+## parts library
+https://library.ldraw.org/library/updates/complete.zip
+
+'peghole.dat' : ピン穴 / $$ミラーをどう扱うか
+  mirror: y軸ミラー (ミラーを戻して / x or zに回す)
+  穴の向き: y軸 / x,zが平面
+
+'axle.dat' : axle棒の先端
+  厚み: 1.0
+  軸の向き: y軸 / x,zが先端平面
+
+'axlehol5.dat' : axle穴（長くしている）-> 面と穴の交点を探す
+'axlehol4.dat' : axle穴（長くしている?）-> 面と穴の交点を探す
+'axlehole.dat' : axle穴
+'axl2hole.dat' : axle穴(歪んでいる?)
+  厚み: 1.0
+  軸の向き: y軸 / x,zが平面
+
+'connect8.dat' : ピン形状
+'connect.dat'  : ピン形状
+'connect2.dat' : ピン形状 (つばなし)
+  軸の向き: -y軸 / x,zが平面
+
+'4-4cyli.dat' : -> 方向 裏表 (mirror と invert nextの違い)
+半径1.0, 長さ1.0, 外側表面
+  x,z scl=6 の時、棒のスルーホール
+
+INVERT / mirror
+
+(欲しいtechnic)
+axle のバリエーション 3,6,9 以外
+pin axle long
+cross
+
+linear-actuator
+
+---
+
+3749.dat: pin -> connect8.dat
+65249.dat: pin -> connect8.dat
+
+32556.dat -> tip of pin
+  connect2.dat
+
+<main parts>
+
+Axle 4, 6, 8
+'3705.dat'
+'3706.dat'
+'3707.dat'
+
+Axle stop 3, 4, 5
+'24316.dat'
+'87083.dat'
+'15462.dat'
+
+Axle Pin
+'3749.dat'
+Axle Pin long
+'65249.dat'
+
+Technic Beam 3x7
+'32009.dat'
+
+Brick 1x2, 1x8, 1x12, 1x16
+'3700.dat'
+'3701.dat'
+'3894.dat'
+'3702.dat'
+'3895.dat'
+'3703.dat'
+
+Connector Axle/Bush
+'32039.dat'
+
+Pin
+'3673.dat'
+
+Pin long
+'32556.dat'
+
+Pin Joiner
+'62462.dat'
+
+Beam 2x0.5
+'41677.dat'
+
+bush with two
+'3713.dat'
+
+Beam 3 x 5 90
+'32526.dat'
+
+Beam 5
+'32316.dat'
+
+Beam 7
+'32524.dat'
+
+Beam 9
+'40490.dat'
+
+Beam 2 x 4 Liftarm
+'32140.dat'
+
+Beam Liftarm triangle
+'99773.dat'
+
+Beam 3,4,5 x 0.5 liftarm
+'6632.dat'
+'32449.dat'
+'11478.dat'
+
+Beam 3 x 7 liftarm bend
+'32271.dat'
+
+Beam 4 x 4 liftarm bend
+'32348.dat'
+
+Beam 4 x 6 liftarm bend
+'6629.dat'
+
+Beam 4 x 3 liftarm triangle
+'43464.dat'
+
+Beam 2 liftarm
+'60483.dat'
+
+Beam 3 with Center Axle
+'7229.dat'
+
+Bush 1/2
+'32123.dat'
+
+Cross block 2 x 2 split (Axle/Twin Pin)
+'41678.dat'
+
+Cross block 2 x 2 (Axle/Twin Pin)
+'32291.dat'
+
+Cross block 2 x 3 (Pin/Pin/Twin Pin)
+'32557.dat'
+
+Cross block 3 x 2 (Axle/Tripple Pin)
+'63869.dat'
+
+Cross block 1 x 3 (Axle/Pin/Pin)
+'42003.dat'
+
+Cross block 1 x 3 (Axle/Pin/Pin)
+'42003.dat'
+
+Cross block 1 x 3 (Axle/Pin/Axle)
+'32184.dat'
+
+Cross block 1 x 2 (Axle/Pin)
+'6536.dat'
+
+Plate 2x4 hole
+'3709b.dat'
+
+<gears>
+Gear 40
+'3649.dat'
+
+Gear 24
+'3648b.dat'
+
+Gear 8
+'3647.dat'
+
+
+Line.bfc is not copied in loadParts, near 'final ='
+
+invert_next would propagate to childs if LineType == FILE
+
+
+ldraw file format
+https://www.ldraw.org/article/218.html
+
+BFC Statements
+https://www.ldraw.org/article/415
+
+update ldraw_parser.py with descriptions below
+
+>>> p = pathlib.Path('ldraw/p')
+>>> p.exists()
+True
+>>> l = [ x for x in p.iterdir() ]
+>>> len(l)
+
+l[0].name
+l[0].suffix
+
+l[0].parent
+l[0].parts
+
+
+#import irsl.pfilter as ip
+#lib=ip.Library.create('src/leocad/ldraw')
+##p=lib.loadParts('614182.dat')
+#p=lib.loadParts('43857.dat') ## 2
+#p=lib.loadParts('32523.dat') ## 3
+#p=lib.loadParts('32140.dat') ## 4 +
+#p=lib.loadParts('irsl00.dat')
+#pt=ip.instantiate(p, lib)
+#aa=ip.gather_locations(pt)
+#m3=ip.gather_triangles(pt)
+#m4=ip.gather_quads(pt)
+#np.save('irsl01_m3.npy', m3)
+#np.save('irsl01_m4.npy', m4)
+
+objs = []
+indices=[(0, 1), (1, 2), (2, 3), (3, 0)]
+for vts in res:
+    objs.append( mkshape.makeLine(vts, line_indices=indices) )
+di.addObjects(objs)
+
+res = []
+for a in aa:
+    if a[1] == 'peghole.dat':
+        res.append(a)
+
+res[0,:]
+
+#TODO
+BFC CW/CCW
+BFC INVERTNEXT
+
+XX NOCERTIFY
+CLIP
+このオプションはカリング状態を有効に設定します。これにより、カリングの他のすべての条件が満たされている場合にカリングが可能になります。（このオプションはCULLと呼ぶべきですが、下位互換性のために意図的にCLIP形式が維持されています。）
+
+NOCLIP
+このオプションはカリング状態を無効に設定します。カリング状態が無効な間に参照されるサブパーツまたはプリミティブは、カリングの対象外となります。（このオプションは本来NOCULLと呼ぶべきですが、下位互換性のために意図的にNOCLIP形式が維持されています。）
+
+最初の操作コマンドラインの前にある0 BFCメタステートメントで、CLIPオプションもNOCLIPオプションも指定されていない場合、そのファイルのカリング状態は有効（CLIP）に設定されます。
+
+BFC CW/BFC CCW
+
+CW
+
+このオプションはポリゴンの巻き方向を時計回りに設定します。
+
+CCW
+
+このオプションはポリゴンの巻き方向を反時計回りに設定します。
+
+CW/CCWに関する注意事項
+
+1つのファイル内で巻き方向の変更は何度でも行えますが、変更は最小限に抑えることを推奨します。
+
+ファイルに巻き方向オプションが指定されていない場合、ローカルの巻き状態はデフォルトで反時計回り（CCW）になります。
+
+
+0 BFC (NOCERTIFY | CERTIFY [CW|{CCW}])
+or
+0 BFC ((CW|CCW) | CLIP [(CW|CCW)] | NOCLIP | INVERTNEXT)
+
+[ fv(0, 0, 0.), fv(1, 0, 0.), fv(0, 1, 0.) ]
+np.save()
+#src/leocad/ldraw/parts/4631649b.dat:1 0 18.6 -0.25 -0.3 0.2121 0 -0.2121 0 1 0 0.2121 0 0.2121 3-4ring6.dat
+#src/leocad/ldraw/parts/4631649b.dat:1 0 7.7 -0.25 -1.7 -0.0518 0 -0.1932 0 1 0 0.1932 0 -0.0518 3-4ring6.dat
+#src/leocad/ldraw/parts/4631649b.dat:1 0 -19.7 -0.25 -0.4 -0.3 0 0 0 1 0 0 0 -0.3 3-4ring6.dat
+#src/leocad/ldraw/parts/4631649b.dat:1 0 -9.7 -0.25 -1.8 -0.1414 0 0.1414 0 1 0 -0.1414 0 -0.1414 3-4ring6.dat
+#
+#src/leocad/ldraw/parts/6141875a.dat:1 15 -5.9 -.25 1.35 .3 0 0 0 1 0 0 0 .3 3-4ring8.dat
+#src/leocad/ldraw/parts/6141875a.dat:1 15 -5.9 -.25 1.35 1.2 0 0 0 1 0 0 0 1.2 3-4ring1.dat
+#src/leocad/ldraw/parts/61482.dat:1 16 -22.5 -14.6 4 -2 0 0 0 0 -2 0 -1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/61482.dat:1 16 -22.5 -14.6 -4 -2 0 0 0 0 -2 0 1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/61482.dat:1 16 22.5 -14.6 4 2 0 0 0 0 -2 0 -1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/61482.dat:1 16 22.5 -14.6 -4 2 0 0 0 0 -2 0 1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 -10 -6 -2 0 0 0 0 -2 0 -1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 -10 -6 0 0 -2 2 0 0 0 -1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 10 -6 2 0 0 0 0 2 0 -1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 10 -6 0 0 2 -2 0 0 0 -1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 -10 -6 -2 0 0 0 0 -2 0 -1 0 3-4ring4.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 -10 -6 0 0 -2 2 0 0 0 -1 0 3-4ring4.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 10 -6 2 0 0 0 0 2 0 -1 0 3-4ring4.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 10 -6 0 0 2 -2 0 0 0 -1 0 3-4ring4.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 -10 -9 2 0 0 0 0 -2 0 1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 10 -9 0 0 -2 -2 0 0 0 1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 10 -9 -2 0 0 0 0 2 0 1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 -10 -9 0 0 2 2 0 0 0 1 0 3-4ring3.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 -10 -9 2 0 0 0 0 -2 0 1 0 3-4ring4.dat
+#src/leocad/ldraw/parts/644.dat:1 16 -10 10 -9 0 0 -2 -2 0 0 0 1 0 3-4ring4.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 10 -9 -2 0 0 0 0 2 0 1 0 3-4ring4.dat
+#src/leocad/ldraw/parts/644.dat:1 16 10 -10 -9 0 0 2 2 0 0 0 1 0 3-4ring4.dat
+
+--- old
+generate file parser with python language
+
+# File specification
+
+There are 6 "LineType".
+
+num : "LineType"
+0: Comment
+1: FILE
+2: LINE
+3: TRIANGLE
+4: QUAD
+5: OPTIONAL
+
+a line in the file will start with "LineType" and white spaces.
+
+For example.
+0 [Comment]
+1 [File description]
+
+
+write code for store "LineType" and descriptions other than "LineType".
+
+
+def parse_file_lines(lines):
+    """
+    Parses lines from a file according to the specified format.
+
+    Returns:
+        data: List of tuples (line_type, description)
+    """
+    parsed_data = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue  # skip empty lines
+        parts = line.split(maxsplit=1)
+        if len(parts) < 2:
+            continue  # skip lines without description
+        try:
+            line_type = int(parts[0])
+        except ValueError:
+            continue  # skip lines where first part is not an integer
+        description = parts[1]
+        parsed_data.append((line_type, description))
+    return parsed_data
+
+
+# Example usage:
+if __name__ == "__main__":
+    sample_lines = [
+        "0 This is a comment",
+        "1 File header",
+        "2 Line description",
+        "3 Triangle info",
+        "4 Quad info",
+        "5 Optional data",
+        "0 Another comment"
+    ]
+    result = parse_file_lines(sample_lines)
+    for line_type, description in result:
+        print(f"LineType: {line_type}, Description: {description}")
+
+
+
+
+4 16 1 1 0 0.9239 1 0.3827 0.9239 0 0.3827 1 0 0
+4 16 0.9239 1 0.3827 0.7071 1 0.7071 0.7071 0 0.7071 0.9239 0 0.3827
+4 16 0.7071 1 0.7071 0.3827 1 0.9239 0.3827 0 0.9239 0.7071 0 0.7071
+4 16 0.3827 1 0.9239 0 1 1 0 0 1 0.3827 0 0.9239
+4 16 0 1 1 -0.3827 1 0.9239 -0.3827 0 0.9239 0 0 1
+4 16 -0.3827 1 0.9239 -0.7071 1 0.7071 -0.7071 0 0.7071 -0.3827 0 0.9239
+4 16 -0.7071 1 0.7071 -0.9239 1 0.3827 -0.9239 0 0.3827 -0.7071 0 0.7071
+4 16 -0.9239 1 0.3827 -1 1 0 -1 0 0 -0.9239 0 0.3827
+4 16 -1 1 0 -0.9239 1 -0.3827 -0.9239 0 -0.3827 -1 0 0
+4 16 -0.9239 1 -0.3827 -0.7071 1 -0.7071 -0.7071 0 -0.7071 -0.9239 0 -0.3827
+4 16 -0.7071 1 -0.7071 -0.3827 1 -0.9239 -0.3827 0 -0.9239 -0.7071 0 -0.7071
+4 16 -0.3827 1 -0.9239 0 1 -1 0 0 -1 -0.3827 0 -0.9239
+4 16 0 1 -1 0.3827 1 -0.9239 0.3827 0 -0.9239 0 0 -1
+4 16 0.3827 1 -0.9239 0.7071 1 -0.7071 0.7071 0 -0.7071 0.3827 0 -0.9239
+4 16 0.7071 1 -0.7071 0.9239 1 -0.3827 0.9239 0 -0.3827 0.7071 0 -0.7071
+4 16 0.9239 1 -0.3827 1 1 0 1 0 0 0.9239 0 -0.3827
+
+leocad
+
+qt/lc_application.cpp
+bool lcApplication::LoadPartsLibrary(const QList<QPair<QString, bool>>& LibraryPaths, bool OnlyUsePaths)
+new lcPiecesLibrary();
+
+common/lc_library.h
+ lc_context.h
+ lc_math.h
+ lc_meshloader.h
+
+common/lc_library.cpp
+ "lc_thumbnailmanager.h"
+ "lc_zipfile.h"
+ "lc_file.h"
+ "pieceinf.h"
+ "lc_colors.h"
+ "lc_texture.h"
+ "lc_category.h"
+ "lc_application.h"
+ "lc_context.h"
+ "lc_glextensions.h"
+ "lc_synth.h"
+ "lc_traintrack.h"
+ "lc_traintrack.h"
+ "project.h"
+ "lc_profile.h"
+ "lc_meshloader.h"
+
+class lcPiecesLibrary : public QObject
+
+common/pieceinf.h
+ lc_math.h
+class PieceInfo
+
+common/pieceinf.cpp
+ "lc_math.h"
+ "lc_mesh.h"
+ "lc_meshloader.h"
+ "lc_colors.h"
+ "lc_texture.h"
+ "pieceinf.h"
+ "lc_library.h"
+ "lc_application.h"
+ "lc_model.h"
+ "project.h"
+ "lc_scene.h"
+ "lc_synth.h"
+ "lc_traintrack.h"
+ "lc_file.h"
+
+common/lc_mesh.h
+class lcMesh
+
+common/lc_mesh.cpp
+ "lc_colors.h"
+ "lc_texture.h"
+ "lc_file.h"
+ "lc_math.h"
+ "lc_application.h"
+ "lc_library.h"
+
+
+ "lc_application.h" ?
+ "lc_category.h"
+ "lc_colors.h"
+ "lc_context.h"
+ "lc_file.h"
+ "lc_glextensions.h"
+ "lc_library.h"
+ "lc_math.h"
+ "lc_mesh.h"
+ "lc_meshloader.h"
+ "lc_model.h"
+ "lc_profile.h"
+ "lc_scene.h"
+ "lc_synth.h"
+ "lc_texture.h"
+ "lc_thumbnailmanager.h"
+ "lc_traintrack.h"
+ "lc_zipfile.h"
+ "pieceinf.h"
+ "project.h"
+
+Adjust loadParts so that after constructing the Pfile it is immediately registered (so recursive loads can find it).
+
+While patching Line.file, assign:
+For non-FILE lines: the owning Pfile (unchanged behavior).
+For FILE lines: the referenced child Pfile (if it loads), otherwise fallback to owning Pfile.
+Keep SubLine logic unchanged (still uses parent Pfile when instantiating).
+No signature changes; logic localized inside loadParts.
+

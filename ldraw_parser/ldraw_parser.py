@@ -50,8 +50,6 @@ BFC Handling:
 
 Recursive Accessors:
     ``SubLines`` provides getTriangles/getQuads/getLines/getOptionals/getLocations including descendants.
-
-Helper gather_* functions remain for backward compatibility.
 """
 
 from __future__ import annotations
@@ -217,7 +215,7 @@ class SubLine:
         # Only FILE lines have a location: (world transform, child Pfile.name)
         if self.type == LineType.FILE and self.child:
             pose = self.child.world.copy()
-            self.locations.append((pose, self.child.name))
+            self.locations.append((pose, self.child.name, self.INVERT))
 
 
 @dataclass
@@ -483,26 +481,6 @@ def instantiate(
     for sub in inst.lines:
         sub.updateLocations()
     return inst
-
-
-def gather_triangles(root: SubLines) -> np.ndarray:
-    return root.getTriangles()
-
-
-def gather_quads(root: SubLines) -> np.ndarray:
-    return root.getQuads()
-
-
-def gather_locations(root: SubLines) -> List[Tuple[np.ndarray, str]]:
-    return root.getLocations()
-
-
-def gather_lines(root: SubLines) -> np.ndarray:
-    return root.getLines()
-
-
-def gather_optionals(root: SubLines) -> np.ndarray:
-    return root.getOptionals()
 
 
 # ------------------------------------------------------------- Helpers ----
