@@ -93,15 +93,19 @@ parts_list = [
     ]
 
 # locations to be checked
-_cc_list_=('peghole.dat', 'axle.dat', 'axlehole.dat', 'axlehol5.dat', 'axlehol4.dat', 'axl2hole.dat', 'connect.dat', 'connect8.dat', '4-4cyli.dat')
+_cc_list_=('peghole.dat', 'axle.dat', 'axlehole.dat', 'axlehol5.dat', 'axlehol4.dat', 'axl2hole.dat', 'connect.dat', 'connect8.dat', '4-4cyli.dat', 'axlehol8.dat', 'axleend2.dat')
 
 ### locations have to be checked INVERT 
 def checkCC(cc):
     if cc[1] in _cc_list_:
         return True
-        if np.linalg.det( cc[0][:3, :3] > 0 ):
-            return True
+        #if np.linalg.det( cc[0][:3, :3] ) > 0:
+        #    return True
     return False
+
+## All_OK
+#def checkCC(cc):
+#    return True
 
 def makeMeshes(pt, scale=0.0004):
     objs = []
@@ -144,17 +148,17 @@ def makeCoords(data, scale=0.01):
     pos = scale*mat[:3, 3]
     return coordinates(pos, rot)
 
-def dumpData(topDir='/tmp/', draw=False): ## di, lp, parts_list
+def dumpData(topDir='/tmp/', draw=False, scale=0.01): ## di, lp, parts_list
     data = {}
     for pname in parts_list:
         pt=lp.instantiate(lib.loadParts(pname), lib)
         di.clear()
-        objs=makeMeshes(pt, scale=0.01)
+        objs=makeMeshes(pt, scale=scale)
         di.addObjects(objs)
         mkshapes.exportMesh('{}{}.stl'.format(topDir, pname), di.SgPosTransform, outputType='stlb')
         aa=[ cc for cc in pt.getLocations() if checkCC(cc) ]
         if draw and len(aa) > 0:
-            cdslst=[ mkshapes.makeCoords(coords=coordinates(0.01*a[0][:3, 3])) for a in aa ]
+            cdslst=[ mkshapes.makeCoords(coords=coordinates(scale*a[0][:3, 3])) for a in aa ]
             di.addObjects(cdslst)
         res = []
         for a,b,c in aa:
@@ -163,11 +167,11 @@ def dumpData(topDir='/tmp/', draw=False): ## di, lp, parts_list
             y = scl[1,1]
             z = scl[2,2]
             # np.linalg.det(scl)
-            res.append( (a, #0
+            res.append( (a,   #0
                          rot, #1
                          scl, #2
-                         b, #3
-                         c, #4
+                         b,   #3
+                         c,   #4
                          f'{x:.1f}_{y:.1f}_{z:.1f}_{b}', #5
                          )
                         )

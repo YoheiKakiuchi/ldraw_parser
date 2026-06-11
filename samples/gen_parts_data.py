@@ -4,11 +4,12 @@ exec(open('irsl_code.py').read())
 
 import pickle
 import ldraw_parser.ldraw_parser as lp
+
 lib = lp.Library.create('ldraw')
 
 di = DrawInterface()
 
-dumpData()
+dumpData('parts/')
 
 #>  %autoindent
 #>  import ldraw_parser.ldraw_parser as lp
@@ -35,4 +36,3 @@ dumpData()
 #>  
 #>  ## export stl
 #>  mkshapes.exportMesh('/tmp/hoge.stl', di.SgPosTransform, outputType='stlb')
-
