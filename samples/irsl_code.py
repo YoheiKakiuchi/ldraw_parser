@@ -1,8 +1,35 @@
 # exec(open('/choreonoid_ws/install/share/irsl_choreonoid/sample/irsl_import.py').read())
 
+# connect.dat -> connect
+# connect8.dat -> connect(short)
+
+# Axle 3, 4, 6, 8
+# axleend2
+
+# Axle stop 3, 4, 5
+# axleend2
+# 8 2 8 4-4cyli.dat ???
+
+# Axle Pin
+# axleend2
+# connect8
+
+# Pin
+# connect
+
+# Brick
+# peghole -> pin / axle
+
+# Beam
+# peghole -> pin(rot) / axle(lin+rot)
+
+# Angle Connector #1
+# 6-1-6 4-4cyli.dat ??
+
 # parts to be checked
 parts_list = [
-    # Axle 4, 6, 8
+    # Axle 3, 4, 6, 8
+    '4519.dat',
     '3705.dat',
     '3706.dat',
     '3707.dat',
@@ -27,6 +54,8 @@ parts_list = [
     '32039.dat',
     # Pin
     '3673.dat',
+    # Pin with friction
+    '4459.dat',
     # Pin long
     '32556.dat',
     # Pin Joiner
@@ -43,6 +72,8 @@ parts_list = [
     '32524.dat',
     # Beam 9
     '40490.dat',
+    #Beam 11
+    '32525.dat',
     # Beam 2 x 4 Liftarm
     '32140.dat',
     # Beam Liftarm triangle
@@ -90,6 +121,13 @@ parts_list = [
     '3648b.dat',
     # Gear 8
     '3647.dat',
+    '32013.dat', #Angle Connector #1
+    '32014.dat', #Angle Connector #6 (90 degree)
+    '32034.dat', #Angle Connector #2 (180 degree)
+    '32269.dat', #Gear 20 Tooth Double Bevel
+    '32270.dat', #Gear 12 Tooth Double Bevel
+    '33299.dat', #Beam  3 x  0.5 Liftarm with Boss and Pin with Closed Central Axle Hole
+    '60484.dat', #Beam  3 x  3 T-shaped
     ]
 
 # locations to be checked
