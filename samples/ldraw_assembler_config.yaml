@@ -1,0 +1,134 @@
+##
+## settings
+##
+GeneralSettings:
+  format: RobotAssemblerYaml
+  formatVersion: 1.0
+  angleUnit: degree ## degree/radian
+  lengthUnit: mm ## m, mm, (inch)
+  massUnit: g ## g,kg
+  ## inertia-tensor(unit) massUnit * lengthUnit^2
+  ## translation: [x, y, z]
+  ## rotation: [ax, ay, az, angle]
+
+##ConnectingConstraintSettings:
+##   connecting-type-list:
+##   connecting-type-match-list:
+##   connecting-configuration-list:
+ConnectingConstraintSettings:
+  connecting-type-list: [CON_A, CON_B]
+  ## pair: [a, b] ## configuration represents transoform from a to b
+  connecting-type-match-list:
+    -
+      pair: [OCN_A, CON_B]
+      allowed-configuration: [fixed]
+  ##
+  connecting-configuration-list:
+    -
+      name: fixed
+      description: 'fixed with same coords'
+
+
+PanelSettings: ## just for choreonoid
+  tab_list:
+    - name: Technique
+      parts: [Pin, Beam]
+
+#PartsSettings:
+#  -
+#    type: (required)
+#    class: (optional / used for pannel)
+#    description: tool-tip description of this parts
+#    visual:
+#      - type: mesh: box: sphere: cylinder:
+#        parameter: [] ???
+#        url: string
+#        translation: [float, float, float] # xyz(3)
+#        rotation: [float, float, float, float] # axis(3), angle(1)
+#        scale: float
+#        color: or material: [TODO]
+#    collision:
+#      - type:
+#        parameter: []
+#        url:
+#        translation:
+#        rotation:
+#        scale:
+#    mass-param: (optional)
+#      mass: float
+#      center-of-mass: [float, float, float] # xyz(3)
+#      inertia-tensor: [float, float, float,  float, float, float,  float, float, float]
+#    connecting-points:
+#      -
+#        name: (required)
+#        types: [] (required)
+#        translation: optional
+#        rotation: optional
+#        description: optional
+#    actuators:
+#      -
+#        (same as connecting-point)
+#        actuator-type: fixed/linear/rotational/(sphere)
+#        axis: x,y,z,-x,-y,-z, or [0,0,1]
+#        limit: [,] # lower, upper
+#        vlimit: [,] # lower, upper
+#        tqlimit: [,] # lower, upper / [0,0]-->free joint
+#        description: optional
+#    extra-data:
+#      -
+#        name: (required)
+#        type: sensor-type # '', '', ''
+#        translation: (optional)
+#        rotation: (optional)
+#        parameters: [] ## depend on sensor-type
+#        device-mapping: {} ## just pass to choreonoid device
+#        description: optional
+PartsSettings:
+  -
+    type: Pin
+    class: Pin
+    description: Pin(description)
+    visual:
+      -
+        type: mesh
+        url: "parts/3673.dat.stl"
+        scale : 1
+        color: [0.45, 0.45, 0.45]
+    collision:
+      -
+        type: mesh
+        url: "parts/3673.dat.stl"
+        scale : 1
+    mass-param:
+      mass: 10.0
+      center-of-mass: [0, 0, 0]
+      inertia-tensor: [10, 0, 0,   0, 10, 0,  0, 0, 10]
+    connecting-points :
+    -
+        name: aaa
+        types: [CON_A]
+        translation: [0.0, 0.0, 0.0]
+  -
+    type: Beam
+    class: Beam
+    description: Beam(description)
+    visual:
+      -
+        type: mesh
+        url: "parts/32316.dat.stl"
+        color: [0.8, 0.0, 0.0]
+        scale : 1
+    collision:
+      -
+        type: mesh
+        url: "parts/32316.dat.stl"
+        scale : 1
+    mass-param:
+      mass: 10.0
+      center-of-mass: [0, 0, 0]
+      inertia-tensor: [10, 0, 0,   0, 10, 0,  0, 0, 10]
+    connecting-points :
+    -
+      name: bbb
+      types: [CON_B]
+      translation: [0.0, 0.0, 0.0]
